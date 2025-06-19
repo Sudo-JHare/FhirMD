@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% from "_form_helpers.html" import render_field %}
+
+{% block extra_head %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/campfire.css') }}">
+    <script src="{{ url_for('static', filename='js/sse.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-9">
+            <div class="card">
+                <div class="card-body">
+                    <h3>Search Packages</h3>
+                    <button class="btn btn-primary" hx-post="{{ url_for('refresh_cache_task') }}" hx-target="#log-output">Clear & Refresh Cache</button>
+                    <p>
+                        {% if last_cached_timestamp %}
+                            Last fetched: {{ last_cached_timestamp.strftime('%Y-%m-%d %H:%M:%S %Z') }}
+                            {% if fetch_failed %} (Fetch Failed) {% endif %}
+                        {% elif is_fetching %}
+                            Fetching package list...
+                        {% else %}
+                            Never fetched.
+                        {% endif %}
+                    </p>
+                    <input type="text" class="form-control" placeholder="Search packages..." hx-get="{{ url_for('api_search_packages') }}" hx-target="#search-results" hx-trigger="keyup changed delay:500ms">
+                    <div id="search-results">
+                        {% include '_search_results_table.html' %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card">
+                <div class="card-body">
+                    <h3>Import a New IG</h3>
+                    <form id="import-form" hx-post="{{ url_for('import_ig') }}" hx-target="body">
+                        {{ form.hidden_tag() }}
+                        {{ render_field(form.package_name, class="form-control") }}
+                        {{ render_field(form.package_version, class="form-control") }}
+                        {{ render_field(form.dependency_mode, class="form-select") }}
+                        <button type="submit" class="btn btn-primary">Import</button>
+                        <a href="{{ url_for('search_and_import') }}" class="btn btn-secondary">Back</a>
+                    </form>
+                    <h4>Live Log Output</h4>
+                    <div id="log-output" class="log">
+                        <div id="log-connecting">Connecting to log stream...</div>
+                    </div>
+                    <div id="animation-window" class="campfire-container" style="display: none;">
+                        <div class="campfire">
+                            <div class="flame"></div>
+                            <div class="flame"></div>
+                            <div class="flame"></div>
+                        </div>
+                    </div>
+                    <div id="warning-text" style="display: none;">
+                        <strong>DO NOT LEAVE PAGE UNTIL COMPLETED</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

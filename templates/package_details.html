@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-8">
+            <h1>{{ package_json.name }} v{{ package_json.version }}</h1>
+            <p>Latest Version: {{ package_json.version }}
+                {% if latest_official_version and latest_official_version != package_json.version %}
+                    | Latest Official: {{ latest_official_version }}
+                {% endif %}
+            </p>
+            <h3>Description</h3>
+            <p>{{ package_json.description | default('No description provided.', true) }}</p>
+            <h3>Dependencies</h3>
+            {% if dependencies %}
+                <table class="table">
+                    <thead>
+                        <tr><th>Package</th><th>Version</th></tr>
+                    </thead>
+                    <tbody>
+                        {% for dep in dependencies %}
+                            <tr><td>{{ dep.name }}</td><td>{{ dep.version }}</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No dependencies found.</p>
+            {% endif %}
+        </div>
+        <div class="col-md-4">
+            <h3>Versions ({{ versions | length }})</h3>
+            <ul class="list-group">
+                {% for version in versions %}
+                    <li class="list-group-item">{{ version }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block body_class %}fire-animation-page{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <div class="col-md-12 text-center">
+            <h1>Welcome to {{ site_name }}</h1>
+            <p class="lead">A tool for managing Australian FHIR test data and Implementation Guides.</p>
+        </div>
+    </div>
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">IG Management</h5>
+                    <p class="card-text">Search and import FHIR Implementation Guides.</p>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item"><a href="{{ url_for('search_and_import') }}">Search & Import IGs</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Test Data</h5>
+                    <p class="card-text">Browse and filter test data resources.</p>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item"><a href="{{ url_for('test_data') }}">View Test Data</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Contribute</h5>
+                    <p class="card-text">Submit new test data for validation and inclusion.</p>
+                    <ul class="list-group list-group-flush">
+                        <li class="list-group-item"><a href="{{ url_for('contribute') }}">Contribute Test Data</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <h2>About {{ site_name }}</h2>
+            <p>This application streamlines the management of FHIR test data for Australian FHIR Implementation Guides, allowing users to import IGs, filter test data by IG resources, and contribute validated test data via GitHub pull requests.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}

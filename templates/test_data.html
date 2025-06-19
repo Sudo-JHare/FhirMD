@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h1>Test Data Resources</h1>
+    <form method="POST" class="mb-4">
+        {{ form.hidden_tag() }}
+        <div class="form-group">
+            <label for="ig_filter">Filter by Implementation Guide</label>
+            <select name="ig_filter" id="ig_filter" class="form-control">
+                {% for value, label in ig_choices %}
+                    <option value="{{ value }}" {% if value == selected_ig %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary mt-2">Apply Filter</button>
+    </form>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Filename</th>
+                <th>Resource Type</th>
+                <th>Resource ID</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for resource in test_resources %}
+                <tr>
+                    <td>{{ resource.filename }}</td>
+                    <td>{{ resource.resource_type }}</td>
+                    <td>{{ resource.resource_id }}</td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="3">No test data resources found.</td>
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
