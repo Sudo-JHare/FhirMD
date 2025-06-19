@@ -1,0 +1,32 @@
+version: '3.8'
+services:
+  fhir-test-data-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./instance:/app/instance
+      - ./static/uploads:/app/static/uploads
+      - ./test_data:/app/test_data
+      - ./logs:/app/logs
+    environment:
+      - FLASK_APP=app.py
+      - FLASK_ENV=development
+      - APP_MODE=lite
+      - APP_BASE_URL=http://localhost:5000
+      - HAPI_FHIR_URL=http://hapi-fhir:8080/fhir
+      - TEST_DATA_FOLDER=/app/test_data
+      - GITHUB_TOKEN=${GITHUB_TOKEN}
+      - GITHUB_REPO_OWNER=${GITHUB_REPO_OWNER}
+      - GITHUB_REPO_NAME=${GITHUB_REPO_NAME}
+    command: supervisord -c /etc/supervisord.conf
+  hapi-fhir:
+    image: hapiproject/hapi:latest
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./h2-data:/data/h2
+    environment:
+      - SPRING_PROFILES_ACTIVE=r4

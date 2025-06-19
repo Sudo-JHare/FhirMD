@@ -1,0 +1,11 @@
+Flask==2.3.3
+Flask-SQLAlchemy==3.0.5
+Werkzeug==2.3.7
+requests==2.31.0
+Flask-WTF==1.2.1
+WTForms==3.1.2
+Flask-Migrate==4.0.5
+cachetools==5.3.3
+pyyaml==6.0.1
+flasgger==0.9.5
+supervisor==4.2.5
