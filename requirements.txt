@@ -8,4 +8,5 @@ Flask-Migrate==4.0.5
 cachetools==5.3.3
 pyyaml==6.0.1
 flasgger==0.9.5
-supervisor==4.2.5
+gunicorn==21.2.0
+setuptools<81
