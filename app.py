@@ -3,18 +3,15 @@ import os
 import datetime
 import queue
 import threading
-import json
-import requests
 import logging
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_wtf import FlaskForm, CSRFProtect
-from werkzeug.utils import secure_filename
 from cachetools import TTLCache
 from flasgger import Swagger
 from logging.handlers import RotatingFileHandler
-from forms import IgImportForm, ContributeTestDataForm
+from forms import IgImportForm
 from services import (
     services_bp,
     fetch_packages_from_registries,
@@ -24,9 +21,7 @@ from services import (
     parse_package_filename,
     construct_tgz_filename,
     get_package_description,
-    parse_test_data_folder,
-    validate_resource_against_hapi,
-    create_github_pull_request
+    parse_test_data_folder
 )
 from models import db, CachedPackage, RegistryCacheInfo, ProcessedIg, TestDataResource
 
@@ -87,16 +82,17 @@ services_logger.addHandler(StreamLogHandler())
 # Ensure directories
 os.makedirs(app.config['FHIR_PACKAGES_DIR'], exist_ok=True)
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+os.makedirs(app.config['TEST_DATA_FOLDER'], exist_ok=True)
 
 # Context processor
 @app.context_processor
 def inject_app_mode():
-    return dict(app_mode=app.config.get('APP_MODE', 'standalone'))
+    return dict(app_mode=app.config.get('APP_MODE', 'lite'), site_name='FHIR Test Data App')
 
 # Routes
 @app.route('/')
 def index():
-    return render_template('index.html', site_name='FHIR Test Data App', now=datetime.datetime.now())
+    return render_template('index.html', now=datetime.datetime.now())
 
 @app.route('/search-and-import')
 def search_and_import():
@@ -262,12 +258,8 @@ def perform_cache_refresh_and_log():
             db.session.query(CachedPackage).delete()
             db.session.flush()
             raw_packages = fetch_packages_from_registries(search_term='')
-            if not raw_packages:
-                logger.warning("No packages returned from registries.")
-                fetch_failed = True
-                normalized_packages = []
-            else:
-                normalized_packages = normalize_package_data(raw_packages)
+            fetch_failed = not raw_packages
+            normalized_packages = normalize_package_data(raw_packages) if raw_packages else []
             now_ts = datetime.datetime.now(datetime.timezone.utc)
             app.config['MANUAL_PACKAGE_CACHE'] = normalized_packages
             app.config['MANUAL_CACHE_TIMESTAMP'] = now_ts
@@ -384,7 +376,7 @@ def import_ig():
                 flash(f"Failed to import {name}#{version}: {simplified_msg}", "error")
                 if is_ajax:
                     return jsonify({"status": "error", "message": simplified_msg}), 400
-                return render_template('import_ig.html', form=form, site_name='FHIR Test Data App')
+                return render_template('import_ig.html', form=form)
             else:
                 if result['errors']:
                     flash(f"Partially imported {name}#{version} with errors.", "warning")
@@ -398,14 +390,14 @@ def import_ig():
             flash(f"Error importing IG: {e}", "error")
             if is_ajax:
                 return jsonify({"status": "error", "message": str(e)}), 500
-            return render_template('import_ig.html', form=form, site_name='FHIR Test Data App')
+            return render_template('import_ig.html', form=form)
     else:
         for field, errors in form.errors.items():
             for error in errors:
                 flash(f"Error in {getattr(form, field).label.text}: {error}", "danger")
         if is_ajax:
             return jsonify({"status": "error", "message": "Form validation failed", "errors": form.errors}), 400
-        return render_template('import_ig.html', form=form, site_name='FHIR Test Data App')
+        return render_template('import_ig.html', form=form)
 
 @app.route('/package-details/<name>')
 def package_details_view(name):
@@ -467,7 +459,7 @@ def package_details_view(name):
 
 @app.route('/test-data', methods=['GET', 'POST'])
 def test_data():
-    form = FlaskForm()  # For CSRF protection
+    form = FlaskForm()
     ig_filter = request.form.get('ig_filter') if request.method == 'POST' else None
     try:
         test_resources = TestDataResource.query.all()
@@ -492,63 +484,7 @@ def test_data():
                            form=form,
                            test_resources=test_resources,
                            ig_choices=ig_choices,
-                           selected_ig=ig_filter,
-                           site_name='FHIR Test Data App')
-
-@app.route('/contribute', methods=['GET', 'POST'])
-def contribute():
-    form = ContributeTestDataForm()
-    if form.validate_on_submit():
-        test_file = form.test_file.data
-        contributor = form.contributor.data
-        filename = secure_filename(test_file.filename)
-        temp_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        test_file.save(temp_path)
-        try:
-            with open(temp_path, 'r', encoding='utf-8') as f:
-                resource = json.load(f)
-            resource_type = resource.get('resourceType')
-            resource_id = resource.get('id')
-            if not resource_type or not resource_id:
-                raise ValueError("Invalid FHIR resource: missing resourceType or id")
-            validation_result = validate_resource_against_hapi(resource, app.config['HAPI_FHIR_URL'])
-            if not validation_result.get('valid', False):
-                flash(f"Validation failed: {'; '.join(validation_result.get('errors', []))}", "error")
-                os.remove(temp_path)
-                return render_template('contribute.html', form=form, site_name='FHIR Test Data App')
-            metadata = {
-                'resource_type': resource_type,
-                'resource_id': resource_id,
-                'contributor': contributor,
-                'timestamp': datetime.datetime.now(datetime.timezone.utc).isoformat(),
-                'validation_status': 'valid',
-                'validation_report': validation_result
-            }
-            metadata_filename = f"{os.path.splitext(filename)[0]}.metadata.json"
-            metadata_path = os.path.join(app.config['UPLOAD_FOLDER'], metadata_filename)
-            with open(metadata_path, 'w', encoding='utf-8') as f:
-                json.dump(metadata, f, indent=2)
-            pr_url = create_github_pull_request(
-                resource_filename=filename,
-                resource_path=temp_path,
-                metadata_filename=metadata_filename,
-                metadata_path=metadata_path,
-                contributor=contributor,
-                repo_owner=app.config['GITHUB_REPO_OWNER'],
-                repo_name=app.config['GITHUB_REPO_NAME'],
-                github_token=app.config['GITHUB_TOKEN']
-            )
-            flash(f"Test data submitted successfully! PR created: {pr_url}", "success")
-            os.remove(temp_path)
-            os.remove(metadata_path)
-            return redirect(url_for('test_data'))
-        except Exception as e:
-            logger.error(f"Error processing contribution: {e}", exc_info=True)
-            flash(f"Error submitting test data: {e}", "error")
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-            return render_template('contribute.html', form=form, site_name='FHIR Test Data App')
-    return render_template('contribute.html', form=form, site_name='FHIR Test Data App')
+                           selected_ig=ig_filter)
 
 if __name__ == '__main__':
     with app.app_context():
