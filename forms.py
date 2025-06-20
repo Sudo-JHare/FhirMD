@@ -1,6 +1,6 @@
 from flask_wtf import FlaskForm
-from wtforms import StringField, SelectField, FileField, SubmitField
-from wtforms.validators import DataRequired, Regexp, Optional, InputRequired
+from wtforms import StringField, SelectField, SubmitField
+from wtforms.validators import DataRequired, Regexp
 
 class IgImportForm(FlaskForm):
     package_name = StringField('Package Name', validators=[
@@ -17,11 +17,3 @@ class IgImportForm(FlaskForm):
         ('tree-shaking', 'Tree Shaking')
     ], default='recursive')
     submit = SubmitField('Import')
-
-class ContributeTestDataForm(FlaskForm):
-    test_file = FileField('Test Data File (JSON)', validators=[
-        InputRequired("Please select a JSON file."),
-        lambda form, field: field.data.filename.lower().endswith('.json') or form.test_file.errors.append('File must be JSON.')
-    ], render_kw={'accept': '.json'})
-    contributor = StringField('Contributor Name', validators=[DataRequired()], render_kw={'placeholder': 'Your Name'})
-    submit = SubmitField('Submit Test Data')
